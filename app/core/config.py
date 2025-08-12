@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     Application settings.
     """
 
+    class Config:
+        extra = "allow"
+
     DATABASE_URL: str
 
     # JWT settings
