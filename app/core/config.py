@@ -6,9 +6,6 @@ class Settings(BaseSettings):
     Application settings.
     """
 
-    class Config:
-        extra = "allow"
-
     DATABASE_URL: str
 
     # JWT settings
@@ -38,7 +35,9 @@ class Settings(BaseSettings):
     )
     GOOGLE_SERVICE_ACCOUNT_JSON: str | None = "./ga_creds.json"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="allow", env_file_encoding="utf-8"
+    )
 
 
 settings = Settings()
