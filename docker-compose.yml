@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  pulse-backend-db:
+    image: library/postgres:alpine
+    container_name: pulse-backend-db
+    environment:
+      - POSTGRES_DB=pulse-backend
+      - POSTGRES_USER=pulse-backend
+      - POSTGRES_PASSWORD=pulse-backend
+    ports:
+      - "5402:5432"
+    restart: always

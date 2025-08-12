@@ -1,0 +1,37 @@
+[project]
+name = "elixa_backend"
+version = "0.1.0"
+description = "AI-агент для анализа Яндекс.Метрики"
+authors = [{ name = "SoloBuilder", email = "dev@example.com" }]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[standard]",
+    "uvicorn",
+    "sqlalchemy",
+    "asyncpg",
+    "alembic",
+    "pydantic[email]",
+    "python-jose[pycryptodome]",
+    "passlib[bcrypt]",
+    "langchain",
+    "langchain-openai",
+    "langgraph",
+    "python-dotenv",
+    "psycopg2-binary",
+    "pydantic-settings",
+    "greenlet>=3.2.3",
+    "loguru>=0.7.3",
+    "arq>=0.26.3",
+    "aioboto3>=15.0.0",
+    "boto3>=1.38.27",
+    "openpyxl>=3.1.0",
+    "google-analytics-data>=0.18.19",
+    "google-auth>=2.40.3",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff",
+    "mypy",
+    "alembic"
+]
