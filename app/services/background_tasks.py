@@ -114,7 +114,7 @@ class BackgroundTaskService:
                 else:
                     logger.info(f"Background task completed successfully")
 
-            task.add_done_callback(task_done_callback)
+            # task.add_done_callback(task_done_callback)
 
         except Exception as e:
             logger.error(f"Failed to start background task: {str(e)}")
