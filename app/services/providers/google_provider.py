@@ -46,7 +46,7 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
             value = settings.ga_creds
             try:
                 # Очищаем строку от лишних экранирований
-                cleaned_value = value.replace("\\\\", "\\")
+                cleaned_value = value.replace("\\\\", "")
                 print("MEMEMEME")
                 print(cleaned_value)
 
