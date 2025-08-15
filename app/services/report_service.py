@@ -42,36 +42,34 @@ class ReportService:
         """Генерация данных отчета из одного или нескольких провайдеров.
         Если передан sources_list — используем мульти-провайдерный сбор.
         """
-        try:
-            if sources_list:
-                # Этап 1: параллельный сбор
-                collected = await collect_reports(
-                    report=report,
-                    sources=sources_list,
-                    registry=self.provider_registry,
-                    yandex_integration=self.yandex_integration,
-                    google_integration=self.google_integration,
-                )
-                if not collected:
-                    return None
+        # try:
+        if sources_list:
+            # Этап 1: параллельный сбор
+            collected = await collect_reports(
+                report=report,
+                sources=sources_list,
+                registry=self.provider_registry,
+                yandex_integration=self.yandex_integration,
+                google_integration=self.google_integration,
+            )
+            if not collected:
+                return None
 
-                # Этап 2: сведение (union)
-                return union_merge(collected)
+            # Этап 2: сведение (union)
+            return union_merge(collected)
 
-            # Одиночный провайдер
-            if self.yandex_integration:
-                yandex_provider = self.provider_registry.get_yandex(
-                    self.yandex_integration
-                )
-                return await yandex_provider.generate_report(report)
+        # Одиночный провайдер
+        if self.yandex_integration:
+            yandex_provider = self.provider_registry.get_yandex(self.yandex_integration)
+            return await yandex_provider.generate_report(report)
 
-            # Fallback: если нет Яндекс интеграции, пробуем Google Analytics 4
-            google_provider = self.provider_registry.get_google(self.google_integration)
-            return await google_provider.generate_report(report)
+        # Fallback: если нет Яндекс интеграции, пробуем Google Analytics 4
+        google_provider = self.provider_registry.get_google(self.google_integration)
+        return await google_provider.generate_report(report)
 
-        except Exception as e:
-            logger.error(f"Error generating report data: {str(e)}")
-            return None
+        # except Exception as e:
+        #     logger.error(f"Error generating report data: {str(e)}")
+        #     return None
 
     async def get_report_by_id(self, report_id: uuid.UUID) -> Optional[Report]:
         """Получение отчета по ID"""
