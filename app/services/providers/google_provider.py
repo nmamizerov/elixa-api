@@ -35,18 +35,24 @@ def fix_coolify_json(escaped_json_string):
     """
     Преобразует экранированную JSON строку из Coolify в валидный JSON
     """
-    # Убираем лишние экранирования
-    # Заменяем \\\" на "
-    cleaned = escaped_json_string.replace('\\"', '"')
+    # Сначала убираем внешние фигурные скобки если они экранированы
+    cleaned = escaped_json_string.strip()
 
-    # Заменяем \\n на \n (для private_key)
-    cleaned = cleaned.replace("\\\\n", "\\n")
+    # Убираем экранирование с начала и конца, если есть
+    if cleaned.startswith('{\\"') and cleaned.endswith('\\"}'):
+        # Убираем экранированные кавычки
+        cleaned = cleaned.replace('\\"', '"')
 
-    # Исправляем private key маркеры - добавляем пробелы
-    cleaned = cleaned.replace(
-        "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
-    )
-    cleaned = cleaned.replace("-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----")
+        # Убираем \\ перед \n (для private_key)
+        cleaned = cleaned.replace("\\\\n", "\\n")
+
+        # Исправляем маркеры private key
+        cleaned = cleaned.replace(
+            "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
+        )
+        cleaned = cleaned.replace(
+            "-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----"
+        )
 
     return cleaned
 
