@@ -45,7 +45,11 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
         if settings.ga_creds:
             value = settings.ga_creds
             try:
+                print("MEMEMEME")
+                print(value)
+
                 creds_info = json.loads(value)
+                print(creds_info)
                 # Исправляем формат private_key если пробелы потерялись
                 if "private_key" in creds_info:
                     private_key = creds_info["private_key"]
