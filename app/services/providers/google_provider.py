@@ -32,27 +32,20 @@ _GA_VERSION = "v1beta"
 
 
 def fix_coolify_json(escaped_json_string):
-    """
-    Преобразует экранированную JSON строку из Coolify в валидный JSON
-    """
-    # Сначала убираем внешние фигурные скобки если они экранированы
+    """Преобразует экранированную JSON строку из Coolify в валидный JSON"""
     cleaned = escaped_json_string.strip()
 
-    # Убираем экранирование с начала и конца, если есть
-    if cleaned.startswith('{\\"') and cleaned.endswith('\\"}'):
-        # Убираем экранированные кавычки
-        cleaned = cleaned.replace('\\"', '"')
+    # Убираем тройное экранирование кавычек: \\\" → "
+    cleaned = cleaned.replace('\\\\"', '"')
 
-        # Убираем \\ перед \n (для private_key)
-        cleaned = cleaned.replace("\\\\n", "\\n")
+    # Убираем четверное экранирование новых строк: \\\\n → \n
+    cleaned = cleaned.replace("\\\\\\n", "\\n")
 
-        # Исправляем маркеры private key
-        cleaned = cleaned.replace(
-            "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
-        )
-        cleaned = cleaned.replace(
-            "-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----"
-        )
+    # Исправляем маркеры private key - добавляем пробелы
+    cleaned = cleaned.replace(
+        "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
+    )
+    cleaned = cleaned.replace("-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----")
 
     return cleaned
 
