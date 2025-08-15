@@ -46,24 +46,9 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
             value = settings.ga_creds
             try:
                 # Очищаем строку от лишних экранирований
-                cleaned_value = value
-
-                # Убираем двойные слеши
-                cleaned_value = cleaned_value.replace("\\\\", "\\")
-
-                # Убираем экранированные кавычки если JSON обернут в строку
-                if cleaned_value.startswith('"{') and cleaned_value.endswith('}"'):
-                    cleaned_value = cleaned_value[1:-1]  # Убираем внешние кавычки
-                    cleaned_value = cleaned_value.replace(
-                        '\\"', '"'
-                    )  # Убираем экранирование кавычек
-
-                print("MEMEMEME")
-                print("Original:", value)
-                print("Cleaned:", cleaned_value)
+                cleaned_value = value.replace("\\", "")
 
                 creds_info = json.loads(cleaned_value)
-                print("Parsed:", creds_info)
 
                 # Исправляем формат private_key если пробелы потерялись
                 if "private_key" in creds_info:
