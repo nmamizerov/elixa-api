@@ -47,6 +47,8 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
             try:
                 # Очищаем строку от лишних экранирований
                 cleaned_value = value.replace("\\", "")
+                print("MEMEMEME")
+                print(cleaned_value)
 
                 creds_info = json.loads(cleaned_value)
 
