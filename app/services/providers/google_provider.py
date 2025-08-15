@@ -31,25 +31,6 @@ GA_SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
 _GA_VERSION = "v1beta"
 
 
-def fix_coolify_json(escaped_json_string):
-    """Преобразует экранированную JSON строку из Coolify в валидный JSON"""
-    cleaned = escaped_json_string.strip()
-
-    # Убираем тройное экранирование кавычек: \\\" → "
-    cleaned = cleaned.replace('\\\\"', '"')
-
-    # Убираем четверное экранирование новых строк: \\\\n → \n
-    cleaned = cleaned.replace("\\\\\\n", "\\n")
-
-    # Исправляем маркеры private key - добавляем пробелы
-    cleaned = cleaned.replace(
-        "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
-    )
-    cleaned = cleaned.replace("-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----")
-
-    return cleaned
-
-
 class GoogleAnalyticsProvider(AnalyticsProvider):
     slug = "google_analytics"
 
@@ -61,22 +42,13 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
         if self._client:
             return self._client
         credentials = None
-        if settings.ga_creds:
-            value = settings.ga_creds
-            try:
-                # Очищаем строку от лишних экранирований
-                print("MEMEMEM")
-                cleaned_value = fix_coolify_json(value)
-                print(cleaned_value)
 
-                creds_info = json.loads(cleaned_value)
-
-                credentials = service_account.Credentials.from_service_account_info(
-                    creds_info, scopes=GA_SCOPES
-                )
-            except (json.JSONDecodeError, Exception) as e:
-                print(f"Ошибка обработки GA credentials: {e}")
-                return None
+        # Используем файл ga_creds.json
+        credentials_path = "ga_creds.json"
+        if os.path.exists(credentials_path):
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials_path, scopes=GA_SCOPES
+            )
         elif settings.GOOGLE_SERVICE_ACCOUNT_JSON:
             value = settings.GOOGLE_SERVICE_ACCOUNT_JSON
             if isinstance(value, str) and os.path.isfile(value):
