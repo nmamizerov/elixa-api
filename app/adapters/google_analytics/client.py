@@ -18,6 +18,23 @@ from app.database.models.integration import GoogleAnalyticsIntegration
 from app.core.config import settings
 
 
+def clean_credentials_string(value: str) -> str:
+    """Очищает строку с credentials от лишних экранирований"""
+    cleaned_value = value
+
+    # Убираем двойные слеши
+    cleaned_value = cleaned_value.replace("\\\\", "\\")
+
+    # Убираем экранированные кавычки если JSON обернут в строку
+    if cleaned_value.startswith('"{') and cleaned_value.endswith('}"'):
+        cleaned_value = cleaned_value[1:-1]  # Убираем внешние кавычки
+        cleaned_value = cleaned_value.replace(
+            '\\"', '"'
+        )  # Убираем экранирование кавычек
+
+    return cleaned_value
+
+
 def fix_private_key_format(creds_info: dict) -> dict:
     """Исправляет формат private_key если пробелы потерялись при парсинге"""
     if "private_key" in creds_info:
@@ -49,8 +66,9 @@ class GoogleAnalyticsClient:
             # Пробуем получить credentials из переменной окружения ga_creds
             if hasattr(settings, "ga_creds") and settings.ga_creds:
                 try:
-                    # Парсим JSON из переменной окружения
-                    creds_info = json.loads(settings.ga_creds)
+                    # Очищаем и парсим JSON из переменной окружения
+                    cleaned_value = clean_credentials_string(settings.ga_creds)
+                    creds_info = json.loads(cleaned_value)
                     # Исправляем формат private_key
                     creds_info = fix_private_key_format(creds_info)
                     credentials = service_account.Credentials.from_service_account_info(
@@ -311,7 +329,8 @@ class GoogleAnalyticsIntegrationAdapter:
             # Пробуем получить credentials из переменной окружения
             if hasattr(settings, "ga_creds") and settings.ga_creds:
                 try:
-                    creds_info = json.loads(settings.ga_creds)
+                    cleaned_value = clean_credentials_string(settings.ga_creds)
+                    creds_info = json.loads(cleaned_value)
                     # Исправляем формат private_key
                     creds_info = fix_private_key_format(creds_info)
                     credentials = service_account.Credentials.from_service_account_info(
