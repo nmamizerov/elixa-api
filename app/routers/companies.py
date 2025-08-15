@@ -215,4 +215,6 @@ async def get_company_goals(
     yandex_metrika_integration = (
         await integrations_service.get_yandex_metrika_integration_detail(company_id)
     )
+    if not yandex_metrika_integration:
+        []
     return yandex_metrika_integration.goals

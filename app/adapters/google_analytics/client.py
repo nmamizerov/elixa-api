@@ -1,4 +1,6 @@
 import asyncio
+import json
+import tempfile
 from typing import Dict, List, Optional, Any
 from loguru import logger
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
@@ -13,6 +15,7 @@ from google.analytics.data_v1beta.types import (
 import os
 
 from app.database.models.integration import GoogleAnalyticsIntegration
+from app.core.config import settings
 
 
 class GoogleAnalyticsClient:
@@ -26,17 +29,25 @@ class GoogleAnalyticsClient:
     ) -> Optional[BetaAnalyticsDataClient]:
         """Получение клиента Google Analytics для интеграции"""
         try:
-            # Используем service account из ga_creds.json
-            credentials_path = "ga_creds.json"
-            if os.path.exists(credentials_path):
-                credentials = service_account.Credentials.from_service_account_file(
-                    credentials_path,
+            credentials = None
+
+            try:
+                # Парсим JSON из переменной окружения
+                creds_info = json.loads(settings.ga_creds)
+                credentials = service_account.Credentials.from_service_account_info(
+                    creds_info,
                     scopes=["https://www.googleapis.com/auth/analytics.readonly"],
                 )
+                logger.info("Используем GA credentials из переменной окружения")
+            except json.JSONDecodeError as e:
+                logger.error(
+                    f"Ошибка парсинга GA credentials из переменной окружения: {e}"
+                )
+            if credentials:
                 return BetaAnalyticsDataClient(credentials=credentials)
             else:
-                logger.error(f"Файл {credentials_path} не найден")
                 return None
+
         except Exception as e:
             logger.error(f"Ошибка при создании GA клиента: {str(e)}")
             return None
@@ -256,15 +267,21 @@ class GoogleAnalyticsIntegrationAdapter:
     def _init_clients(self):
         """Инициализирует клиентов Google Analytics"""
         try:
-            if self.credentials_path and os.path.exists(self.credentials_path):
-                # Используем service account из ga_creds.json
-                credentials = service_account.Credentials.from_service_account_file(
-                    self.credentials_path,
+            credentials = None
+
+            try:
+                creds_info = json.loads(settings.ga_creds)
+                credentials = service_account.Credentials.from_service_account_info(
+                    creds_info,
                     scopes=["https://www.googleapis.com/auth/analytics.readonly"],
                 )
+            except json.JSONDecodeError as e:
+                logger.error(f"Ошибка парсинга GA credentials: {e}")
+
+            if credentials:
                 self._data_client = BetaAnalyticsDataClient(credentials=credentials)
             else:
-                logger.error(f"Файл {self.credentials_path} не найден")
+                logger.error("GA credentials не найдены")
                 self._data_client = None
 
         except Exception as e:
