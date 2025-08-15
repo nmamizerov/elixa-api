@@ -2,6 +2,7 @@ import asyncio
 from typing import List, Dict, Any
 from langchain.tools import BaseTool
 from pydantic import Field
+from app.adapters.y_metrika.client import metrika_client
 
 
 class YandexMetrikaDataTool(BaseTool):
@@ -36,7 +37,6 @@ class YandexMetrikaDataTool(BaseTool):
     ) -> Dict[str, Any]:
         """Получает данные из Яндекс.Метрики"""
         try:
-            from app.adapters.y_metrika.client import metrika_client
 
             if not self.yandexMetrikaIntegration:
                 return {"error": "Компания не указана", "status": "error"}

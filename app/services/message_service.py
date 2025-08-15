@@ -79,9 +79,15 @@ class MessageService:
             yandex_metrika_integration = await self.integration_repo.get_yandex_metrika_integration_by_company_id(
                 user.current_company_id
             )
+            google_analytics_integration = await self.integration_repo.get_google_analytics_integration_by_company_id(
+                user.current_company_id
+            )
 
             # Обрабатываем через агента
-            agent = MarketingAgent(yandexMetrikaIntegration=yandex_metrika_integration)
+            agent = MarketingAgent(
+                yandexMetrikaIntegration=yandex_metrika_integration,
+                googleAnalyticsIntegration=google_analytics_integration,
+            )
             content = await agent.process_message(parent_message.content, chat_history)
         else:
             # Для пользовательского сообщения берем content из DTO
@@ -140,8 +146,14 @@ class MessageService:
             yandex_metrika_integration = await self.integration_repo.get_yandex_metrika_integration_by_company_id(
                 user.current_company_id
             )
+            google_analytics_integration = await self.integration_repo.get_google_analytics_integration_by_company_id(
+                user.current_company_id
+            )
             # Обрабатываем через агента
-            agent = MarketingAgent(yandexMetrikaIntegration=yandex_metrika_integration)
+            agent = MarketingAgent(
+                yandexMetrikaIntegration=yandex_metrika_integration,
+                googleAnalyticsIntegration=google_analytics_integration,
+            )
 
             assistant_content = ""
 

@@ -151,57 +151,35 @@ class BackgroundTaskService:
 
         self.running_tasks.add(task_id)
 
-        try:
-            # Получаем сессию базы данных
-            async with SessionLocal() as session:
-                try:
-                    report_repo = ReportRepository(session)
-                    conclusion_service = ConclusionService(report_repo)
+        # Получаем сессию базы данных
+        async with SessionLocal() as session:
+            report_repo = ReportRepository(session)
+            conclusion_service = ConclusionService(report_repo)
 
-                    # Генерируем заключение
-                    conclusion = await conclusion_service.generate_conclusion(report_id)
+            # Генерируем заключение
+            conclusion = await conclusion_service.generate_conclusion(report_id)
 
-                    if conclusion:
-                        logger.info(
-                            f"Conclusion generated successfully for report {report_id}"
-                        )
-                    else:
-                        logger.error(
-                            f"Failed to generate conclusion for report {report_id}"
-                        )
+            if conclusion:
+                logger.info(f"Conclusion generated successfully for report {report_id}")
+            else:
+                logger.error(f"Failed to generate conclusion for report {report_id}")
 
-                except Exception as e:
-                    logger.error(
-                        f"Error processing conclusion for report {report_id}: {str(e)}"
-                    )
-
-        except Exception as e:
-            logger.error(
-                f"Critical error in background task for conclusion {report_id}: {str(e)}"
-            )
-        finally:
             self.running_tasks.discard(task_id)
 
     def start_conclusion_generation(self, report_id: uuid.UUID) -> None:
         """Запуск фоновой задачи для генерации заключения отчета"""
-        try:
-            # Создаем задачу в event loop
-            loop = asyncio.get_event_loop()
-            task = loop.create_task(self.process_conclusion_generation(report_id))
+        # Создаем задачу в event loop
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(self.process_conclusion_generation(report_id))
 
-            # Добавляем callback для логирования завершения
-            def task_done_callback(task):
-                if task.exception():
-                    logger.error(
-                        f"Conclusion generation task failed: {task.exception()}"
-                    )
-                else:
-                    logger.info(f"Conclusion generation task completed successfully")
+        # Добавляем callback для логирования завершения
+        def task_done_callback(task):
+            if task.exception():
+                logger.error(f"Conclusion generation task failed: {task.exception()}")
+            else:
+                logger.info(f"Conclusion generation task completed successfully")
 
-            task.add_done_callback(task_done_callback)
-
-        except Exception as e:
-            logger.error(f"Failed to start conclusion generation task: {str(e)}")
+        task.add_done_callback(task_done_callback)
 
 
 # Создаем единственный экземпляр сервиса

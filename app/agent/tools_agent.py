@@ -1,22 +1,22 @@
-import uuid
 from typing import List, Dict, AsyncGenerator
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-import json
-import asyncio
 
 from app.agent.tools.dates_parse_tool import DateParserTool
 from app.agent.tools.yandex_metric import YandexMetrikaDataTool
 from app.agent.tools.yandex_metric_params import YandexMetrikaParamsTool
+from app.agent.tools.google_analytics_data import GoogleAnalyticsDataTool
+from app.agent.tools.google_analytics_params import GoogleAnalyticsParamsTool
 from app.core.config import settings
 
 
 class MarketingAgent:
     """Tool-based агент для маркетинговой аналитики"""
 
-    def __init__(self, yandexMetrikaIntegration=None):
+    def __init__(self, yandexMetrikaIntegration=None, googleAnalyticsIntegration=None):
         self.yandexMetrikaIntegration = yandexMetrikaIntegration
+        self.googleAnalyticsIntegration = googleAnalyticsIntegration
         self.llm = ChatOpenAI(
             model="gpt-4o-mini", temperature=0.7, openai_api_key=settings.OPENAI_API_KEY
         )
@@ -24,9 +24,29 @@ class MarketingAgent:
         # Создаем инструменты
         self.tools = [
             DateParserTool(),
-            YandexMetrikaParamsTool(),
-            YandexMetrikaDataTool(yandexMetrikaIntegration=yandexMetrikaIntegration),
         ]
+
+        # Добавляем инструменты Яндекс.Метрики если есть интеграция
+        if yandexMetrikaIntegration:
+            self.tools.extend(
+                [
+                    YandexMetrikaParamsTool(),
+                    YandexMetrikaDataTool(
+                        yandexMetrikaIntegration=yandexMetrikaIntegration
+                    ),
+                ]
+            )
+
+        # Добавляем инструменты Google Analytics если есть интеграция
+        if googleAnalyticsIntegration:
+            self.tools.extend(
+                [
+                    GoogleAnalyticsParamsTool(),
+                    GoogleAnalyticsDataTool(
+                        googleAnalyticsIntegration=googleAnalyticsIntegration
+                    ),
+                ]
+            )
 
         # Создаем промпт для агента
         self.prompt = ChatPromptTemplate.from_messages(
@@ -54,34 +74,36 @@ class MarketingAgent:
 
     def _get_system_prompt(self) -> str:
         """Возвращает системный промпт для агента"""
-        return """Ты — AI-агент для анализа веб-аналитики по имени Pulse. 
-        Твоя задача — помочь пользователю с анализом данных из Яндекс.Метрики, 
-        отвечать на вопросы о трафике, конверсии, поведении пользователей и давать практические рекомендации.
 
-        У тебя есть доступ к следующим инструментам:
-        1. parse_dates - для извлечения дат из запроса пользователя
-        2. get_metrika_params - для определения нужных метрик и измерений
-        3. get_metrika_data - для получения данных из Яндекс.Метрики
+        available_sources = []
+        if self.yandexMetrikaIntegration:
+            available_sources.append("Яндекс.Метрика")
+        if self.googleAnalyticsIntegration:
+            available_sources.append("Google Analytics")
 
-        ВАЖНЫЕ ПРАВИЛА:
-        - Если пользователь спрашивает про данные из Яндекс.Метрики, ОБЯЗАТЕЛЬНО используй инструменты в правильном порядке:
-          1) Сначала parse_dates для определения периода
-          2) Затем get_metrika_params для определения нужных метрик  
-          3) Наконец get_metrika_data для получения данных
-        - Если пользователь задает общий вопрос без запроса данных, отвечай на основе своих знаний
-        - Всегда отвечай на русском языке
-        - Будь конкретным и полезным в своих советах
-        - Если получил данные из Метрики, обязательно проанализируй их и дай рекомендации
+        sources_text = (
+            " и ".join(available_sources)
+            if available_sources
+            else "аналитические системы"
+        )
 
-        Примеры вопросов, требующих данных:
-        - "Покажи трафик за последнюю неделю"
-        - "Какие источники трафика самые эффективные?"
-        - "Сколько у нас было посетителей вчера?"
+        return f"""
+        Ты - AI-агент для маркетинговой аналитики, который работает с данными из {sources_text}.
         
-        Примеры общих вопросов:
-        - "Как улучшить конверсию сайта?"
-        - "Что такое показатель отказов?"
-        - "Привет, как дела?"
+        Доступные источники данных: {sources_text}
+        
+        Твоя задача:
+        1. Анализировать запросы пользователей о маркетинговых метриках
+        2. Определять нужные данные и временные периоды
+        3. Получать данные из доступных источников
+        4. Предоставлять понятные и полезные аналитические отчеты
+        
+        ВАЖНАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ ДЕЙСТВИЙ:
+        1. ВСЕГДА сначала используй parse_dates для определения временного периода
+        2. Затем используй get_metrika_params (для Яндекс.Метрики) или get_ga_params (для Google Analytics) для определения нужных метрик
+        3. Только после этого используй get_metrika_data или get_ga_data для получения данных
+        
+        Отвечай на русском языке, будь полезным и предоставляй практические рекомендации.
         """
 
     async def process_message(

@@ -4,6 +4,7 @@ from sqlalchemy import (
     String,
     DateTime,
     func,
+    Boolean,
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
@@ -44,4 +45,7 @@ class User(Base):
     )
     company_users: Mapped[list["CompanyUser"]] = relationship(
         "CompanyUser", back_populates="user", cascade="all, delete-orphan"
+    )
+    onboarded: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
     )

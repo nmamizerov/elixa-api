@@ -1,4 +1,5 @@
 import uuid
+import os
 from typing import Optional
 from loguru import logger
 from langchain_openai import ChatOpenAI
@@ -7,7 +8,6 @@ from langchain.schema import HumanMessage, SystemMessage
 from app.core.config import settings
 from app.database.models.report import Report, ConclusionStatusEnum
 from app.database.repositories.report_repository import ReportRepository
-from app.agent.prompts.generate_conclusion import GENERATE_CONCLUSION_PROMPT
 from app.converters.excel import get_report_data_preview
 
 
@@ -23,10 +23,22 @@ class ConclusionService:
             max_tokens=4000,
         )
 
+    def _load_prompt_from_file(self, filename: str) -> str:
+        """Загружает промпт из файла"""
+        try:
+            prompts_dir = os.path.join(os.path.dirname(__file__), "..", "prompts")
+            file_path = os.path.join(prompts_dir, filename)
+
+            with open(file_path, "r", encoding="utf-8") as file:
+                return file.read().strip()
+        except Exception as e:
+            logger.error(f"Error loading prompt from {filename}: {str(e)}")
+            raise
+
     async def generate_conclusion(self, report_id: uuid.UUID) -> Optional[str]:
         """Генерация заключения для отчета"""
+        # Получаем отчет из базы данных
         try:
-            # Получаем отчет из базы данных
             report = await self.report_repo.get_report_by_id(report_id)
             if not report:
                 logger.error(f"Report {report_id} not found")
@@ -117,7 +129,9 @@ class ConclusionService:
 """
 
         if report.goals:
-            metadata += f"Цели: {', '.join(report.goals)}\n"
+            metadata += (
+                f"Цели: {', '.join( [goal['name'] for goal in report.goals] )}\n"
+            )
 
         if report.selected_metrics:
             metadata += f"Выбранные метрики: {', '.join(report.selected_metrics)}\n"
@@ -144,17 +158,21 @@ class ConclusionService:
     ) -> Optional[str]:
         """Генерация заключения с помощью LLM"""
         try:
-            # Подготавливаем промпт
-            prompt = GENERATE_CONCLUSION_PROMPT.format(
+            # Загружаем промпты из файлов
+            system_prompt = self._load_prompt_from_file("system_report_conclusion.txt")
+            human_prompt_template = self._load_prompt_from_file(
+                "human_report_conclusion.txt"
+            )
+
+            # Подготавливаем human промпт с данными
+            human_prompt = human_prompt_template.format(
                 report_metadata=report_metadata, report_data=report_data
             )
 
             # Формируем сообщения для LLM
             messages = [
-                SystemMessage(
-                    content="Ты - эксперт-аналитик по веб-аналитике. Анализируй данные и давай конкретные рекомендации."
-                ),
-                HumanMessage(content=prompt),
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=human_prompt),
             ]
 
             # Получаем ответ от LLM
