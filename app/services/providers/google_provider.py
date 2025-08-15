@@ -42,22 +42,12 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
         if self._client:
             return self._client
         credentials = None
-        if settings.GOOGLE_SERVICE_ACCOUNT_JSON:
-            value = settings.GOOGLE_SERVICE_ACCOUNT_JSON
-            if isinstance(value, str) and os.path.isfile(value):
-                # Это путь до файла JSON
-                credentials = service_account.Credentials.from_service_account_file(
-                    value, scopes=GA_SCOPES
-                )
-        elif settings.GOOGLE_APPLICATION_CREDENTIALS:
-            credentials = service_account.Credentials.from_service_account_file(
-                settings.GOOGLE_APPLICATION_CREDENTIALS, scopes=GA_SCOPES
+        if settings.ga_creds:
+            value = settings.ga_creds
+            credentials = service_account.Credentials.from_service_account_info(
+                json.loads(value), scopes=GA_SCOPES
             )
-        # Если креды не заданы явно — пробуем ADC
-        if credentials is None:
-            self._client = GAClient()
-        else:
-            self._client = GAClient(credentials=credentials)
+        self._client = GAClient(credentials=credentials)
         return self._client
 
     async def _resolve_property_id(self, report: Report) -> Optional[str]:
