@@ -44,10 +44,39 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
         credentials = None
         if settings.ga_creds:
             value = settings.ga_creds
-            credentials = service_account.Credentials.from_service_account_info(
-                json.loads(value), scopes=GA_SCOPES
+            try:
+                creds_info = json.loads(value)
+                # Исправляем формат private_key если пробелы потерялись
+                if "private_key" in creds_info:
+                    private_key = creds_info["private_key"]
+                    private_key = private_key.replace(
+                        "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
+                    )
+                    private_key = private_key.replace(
+                        "-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----"
+                    )
+                    creds_info["private_key"] = private_key
+                credentials = service_account.Credentials.from_service_account_info(
+                    creds_info, scopes=GA_SCOPES
+                )
+            except (json.JSONDecodeError, Exception) as e:
+                print(f"Ошибка обработки GA credentials: {e}")
+                return None
+        elif settings.GOOGLE_SERVICE_ACCOUNT_JSON:
+            value = settings.GOOGLE_SERVICE_ACCOUNT_JSON
+            if isinstance(value, str) and os.path.isfile(value):
+                credentials = service_account.Credentials.from_service_account_file(
+                    value, scopes=GA_SCOPES
+                )
+        elif settings.GOOGLE_APPLICATION_CREDENTIALS:
+            credentials = service_account.Credentials.from_service_account_file(
+                settings.GOOGLE_APPLICATION_CREDENTIALS, scopes=GA_SCOPES
             )
-        self._client = GAClient(credentials=credentials)
+
+        if credentials is None:
+            self._client = GAClient()
+        else:
+            self._client = GAClient(credentials=credentials)
         return self._client
 
     async def _resolve_property_id(self, report: Report) -> Optional[str]:

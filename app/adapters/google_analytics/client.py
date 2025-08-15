@@ -18,6 +18,21 @@ from app.database.models.integration import GoogleAnalyticsIntegration
 from app.core.config import settings
 
 
+def fix_private_key_format(creds_info: dict) -> dict:
+    """Исправляет формат private_key если пробелы потерялись при парсинге"""
+    if "private_key" in creds_info:
+        private_key = creds_info["private_key"]
+        # Исправляем заголовки если пробелы потерялись
+        private_key = private_key.replace(
+            "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
+        )
+        private_key = private_key.replace(
+            "-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----"
+        )
+        creds_info["private_key"] = private_key
+    return creds_info
+
+
 class GoogleAnalyticsClient:
     """Клиент для работы с API Google Analytics"""
 
@@ -31,18 +46,42 @@ class GoogleAnalyticsClient:
         try:
             credentials = None
 
-            try:
-                # Парсим JSON из переменной окружения
-                creds_info = json.loads(settings.ga_creds)
-                credentials = service_account.Credentials.from_service_account_info(
-                    creds_info,
-                    scopes=["https://www.googleapis.com/auth/analytics.readonly"],
-                )
-                logger.info("Используем GA credentials из переменной окружения")
-            except json.JSONDecodeError as e:
-                logger.error(
-                    f"Ошибка парсинга GA credentials из переменной окружения: {e}"
-                )
+            # Пробуем получить credentials из переменной окружения ga_creds
+            if hasattr(settings, "ga_creds") and settings.ga_creds:
+                try:
+                    # Парсим JSON из переменной окружения
+                    creds_info = json.loads(settings.ga_creds)
+                    # Исправляем формат private_key
+                    creds_info = fix_private_key_format(creds_info)
+                    credentials = service_account.Credentials.from_service_account_info(
+                        creds_info,
+                        scopes=["https://www.googleapis.com/auth/analytics.readonly"],
+                    )
+                    logger.info("Используем GA credentials из переменной окружения")
+                except json.JSONDecodeError as e:
+                    logger.error(
+                        f"Ошибка парсинга GA credentials из переменной окружения: {e}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Ошибка создания GA credentials из переменной окружения: {e}"
+                    )
+
+            # Fallback: используем файл ga_creds.json если есть
+            if not credentials:
+                credentials_path = "ga_creds.json"
+                if os.path.exists(credentials_path):
+                    credentials = service_account.Credentials.from_service_account_file(
+                        credentials_path,
+                        scopes=["https://www.googleapis.com/auth/analytics.readonly"],
+                    )
+                    logger.info("Используем GA credentials из файла ga_creds.json")
+                else:
+                    logger.error(
+                        "GA credentials не найдены ни в переменных окружения, ни в файле"
+                    )
+                    return None
+
             if credentials:
                 return BetaAnalyticsDataClient(credentials=credentials)
             else:
@@ -269,14 +308,29 @@ class GoogleAnalyticsIntegrationAdapter:
         try:
             credentials = None
 
-            try:
-                creds_info = json.loads(settings.ga_creds)
-                credentials = service_account.Credentials.from_service_account_info(
-                    creds_info,
+            # Пробуем получить credentials из переменной окружения
+            if hasattr(settings, "ga_creds") and settings.ga_creds:
+                try:
+                    creds_info = json.loads(settings.ga_creds)
+                    # Исправляем формат private_key
+                    creds_info = fix_private_key_format(creds_info)
+                    credentials = service_account.Credentials.from_service_account_info(
+                        creds_info,
+                        scopes=["https://www.googleapis.com/auth/analytics.readonly"],
+                    )
+                except (json.JSONDecodeError, Exception) as e:
+                    logger.error(f"Ошибка парсинга GA credentials: {e}")
+
+            # Fallback: используем файл
+            if (
+                not credentials
+                and self.credentials_path
+                and os.path.exists(self.credentials_path)
+            ):
+                credentials = service_account.Credentials.from_service_account_file(
+                    self.credentials_path,
                     scopes=["https://www.googleapis.com/auth/analytics.readonly"],
                 )
-            except json.JSONDecodeError as e:
-                logger.error(f"Ошибка парсинга GA credentials: {e}")
 
             if credentials:
                 self._data_client = BetaAnalyticsDataClient(credentials=credentials)
