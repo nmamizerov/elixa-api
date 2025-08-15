@@ -31,6 +31,26 @@ GA_SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
 _GA_VERSION = "v1beta"
 
 
+def fix_coolify_json(escaped_json_string):
+    """
+    Преобразует экранированную JSON строку из Coolify в валидный JSON
+    """
+    # Убираем лишние экранирования
+    # Заменяем \\\" на "
+    cleaned = escaped_json_string.replace('\\"', '"')
+
+    # Заменяем \\n на \n (для private_key)
+    cleaned = cleaned.replace("\\\\n", "\\n")
+
+    # Исправляем private key маркеры - добавляем пробелы
+    cleaned = cleaned.replace(
+        "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
+    )
+    cleaned = cleaned.replace("-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----")
+
+    return cleaned
+
+
 class GoogleAnalyticsProvider(AnalyticsProvider):
     slug = "google_analytics"
 
@@ -46,22 +66,11 @@ class GoogleAnalyticsProvider(AnalyticsProvider):
             value = settings.ga_creds
             try:
                 # Очищаем строку от лишних экранирований
-                cleaned_value = value.replace("\\\\", "\\")
-                print("MEMEMEME")
+                print("MEMEMEM")
+                cleaned_value = fix_coolify_json(value)
                 print(cleaned_value)
 
                 creds_info = json.loads(cleaned_value)
-
-                # Исправляем формат private_key если пробелы потерялись
-                if "private_key" in creds_info:
-                    private_key = creds_info["private_key"]
-                    private_key = private_key.replace(
-                        "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
-                    )
-                    private_key = private_key.replace(
-                        "-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----"
-                    )
-                    creds_info["private_key"] = private_key
 
                 credentials = service_account.Credentials.from_service_account_info(
                     creds_info, scopes=GA_SCOPES
