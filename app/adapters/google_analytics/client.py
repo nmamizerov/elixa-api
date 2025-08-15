@@ -18,38 +18,6 @@ from app.database.models.integration import GoogleAnalyticsIntegration
 from app.core.config import settings
 
 
-def clean_credentials_string(value: str) -> str:
-    """Очищает строку с credentials от лишних экранирований"""
-    cleaned_value = value
-
-    # Убираем двойные слеши
-    cleaned_value = cleaned_value.replace("\\\\", "\\")
-
-    # Убираем экранированные кавычки если JSON обернут в строку
-    if cleaned_value.startswith('"{') and cleaned_value.endswith('}"'):
-        cleaned_value = cleaned_value[1:-1]  # Убираем внешние кавычки
-        cleaned_value = cleaned_value.replace(
-            '\\"', '"'
-        )  # Убираем экранирование кавычек
-
-    return cleaned_value
-
-
-def fix_private_key_format(creds_info: dict) -> dict:
-    """Исправляет формат private_key если пробелы потерялись при парсинге"""
-    if "private_key" in creds_info:
-        private_key = creds_info["private_key"]
-        # Исправляем заголовки если пробелы потерялись
-        private_key = private_key.replace(
-            "-----BEGINPRIVATEKEY-----", "-----BEGIN PRIVATE KEY-----"
-        )
-        private_key = private_key.replace(
-            "-----ENDPRIVATEKEY-----", "-----END PRIVATE KEY-----"
-        )
-        creds_info["private_key"] = private_key
-    return creds_info
-
-
 class GoogleAnalyticsClient:
     """Клиент для работы с API Google Analytics"""
 
@@ -61,48 +29,17 @@ class GoogleAnalyticsClient:
     ) -> Optional[BetaAnalyticsDataClient]:
         """Получение клиента Google Analytics для интеграции"""
         try:
-            credentials = None
-
-            # Пробуем получить credentials из переменной окружения ga_creds
-            if hasattr(settings, "ga_creds") and settings.ga_creds:
-                try:
-                    # Очищаем и парсим JSON из переменной окружения
-                    cleaned_value = clean_credentials_string(settings.ga_creds)
-                    creds_info = json.loads(cleaned_value)
-                    # Исправляем формат private_key
-                    creds_info = fix_private_key_format(creds_info)
-                    credentials = service_account.Credentials.from_service_account_info(
-                        creds_info,
-                        scopes=["https://www.googleapis.com/auth/analytics.readonly"],
-                    )
-                    logger.info("Используем GA credentials из переменной окружения")
-                except json.JSONDecodeError as e:
-                    logger.error(
-                        f"Ошибка парсинга GA credentials из переменной окружения: {e}"
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Ошибка создания GA credentials из переменной окружения: {e}"
-                    )
-
-            # Fallback: используем файл ga_creds.json если есть
-            if not credentials:
-                credentials_path = "ga_creds.json"
-                if os.path.exists(credentials_path):
-                    credentials = service_account.Credentials.from_service_account_file(
-                        credentials_path,
-                        scopes=["https://www.googleapis.com/auth/analytics.readonly"],
-                    )
-                    logger.info("Используем GA credentials из файла ga_creds.json")
-                else:
-                    logger.error(
-                        "GA credentials не найдены ни в переменных окружения, ни в файле"
-                    )
-                    return None
-
-            if credentials:
+            # Используем файл ga_creds.json
+            credentials_path = "ga_creds.json"
+            if os.path.exists(credentials_path):
+                credentials = service_account.Credentials.from_service_account_file(
+                    credentials_path,
+                    scopes=["https://www.googleapis.com/auth/analytics.readonly"],
+                )
+                logger.info("Используем GA credentials из файла ga_creds.json")
                 return BetaAnalyticsDataClient(credentials=credentials)
             else:
+                logger.error("Файл ga_creds.json не найден")
                 return None
 
         except Exception as e:
@@ -324,37 +261,15 @@ class GoogleAnalyticsIntegrationAdapter:
     def _init_clients(self):
         """Инициализирует клиентов Google Analytics"""
         try:
-            credentials = None
-
-            # Пробуем получить credentials из переменной окружения
-            if hasattr(settings, "ga_creds") and settings.ga_creds:
-                try:
-                    cleaned_value = clean_credentials_string(settings.ga_creds)
-                    creds_info = json.loads(cleaned_value)
-                    # Исправляем формат private_key
-                    creds_info = fix_private_key_format(creds_info)
-                    credentials = service_account.Credentials.from_service_account_info(
-                        creds_info,
-                        scopes=["https://www.googleapis.com/auth/analytics.readonly"],
-                    )
-                except (json.JSONDecodeError, Exception) as e:
-                    logger.error(f"Ошибка парсинга GA credentials: {e}")
-
-            # Fallback: используем файл
-            if (
-                not credentials
-                and self.credentials_path
-                and os.path.exists(self.credentials_path)
-            ):
+            # Используем файл ga_creds.json
+            if self.credentials_path and os.path.exists(self.credentials_path):
                 credentials = service_account.Credentials.from_service_account_file(
                     self.credentials_path,
                     scopes=["https://www.googleapis.com/auth/analytics.readonly"],
                 )
-
-            if credentials:
                 self._data_client = BetaAnalyticsDataClient(credentials=credentials)
             else:
-                logger.error("GA credentials не найдены")
+                logger.error(f"Файл {self.credentials_path} не найден")
                 self._data_client = None
 
         except Exception as e:
